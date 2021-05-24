@@ -36,8 +36,10 @@ int main(int argc, char **argv)
     cv::imread("data/left.pgm", 0).convertTo(limg, CV_32FC1);
     cv::imread("data/righ.pgm", 0).convertTo(rimg, CV_32FC1);
   } else {
-    cv::imread("data/img1.png", 0).convertTo(limg, CV_32FC1);
-    cv::imread("data/img2.png", 0).convertTo(rimg, CV_32FC1);
+    // cv::imread("data/img1.png", 0).convertTo(limg, CV_32FC1);
+    // cv::imread("data/img2.png", 0).convertTo(rimg, CV_32FC1);
+    cv::imread("data/img1_uw.png", 0).convertTo(limg, CV_32FC1);
+    cv::imread("data/img2_uw.png", 0).convertTo(rimg, CV_32FC1);
   }
   //cv::flip(limg, rimg, -1);
   unsigned int w = limg.cols;
@@ -55,17 +57,17 @@ int main(int argc, char **argv)
 
   // Extract Sift features from images
   SiftData siftData1, siftData2;
-  float initBlur = 1.0f;
+  float initBlur = 1.6f;
   float thresh = (imgSet ? 4.5f : 3.0f);
   InitSiftData(siftData1, 32768, true, true); 
   InitSiftData(siftData2, 32768, true, true);
   
   // A bit of benchmarking 
   //for (int thresh1=1.00f;thresh1<=4.01f;thresh1+=0.50f) {
-  float *memoryTmp = AllocSiftTempMemory(w, h, 5, false);
+  float *memoryTmp = AllocSiftTempMemory(w*2, h*2, 5, false);
     for (int i=0;i<1000;i++) {
-      ExtractSift(siftData1, img1, 5, initBlur, thresh, 0.0f, false, memoryTmp);
-      ExtractSift(siftData2, img2, 5, initBlur, thresh, 0.0f, false, memoryTmp);
+      ExtractSift(siftData1, img1, 5, initBlur, thresh, 0.0f, true, memoryTmp);
+      ExtractSift(siftData2, img2, 5, initBlur, thresh, 0.0f, true, memoryTmp);
     }
     FreeSiftTempMemory(memoryTmp);
     

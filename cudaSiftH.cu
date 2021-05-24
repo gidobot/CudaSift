@@ -399,7 +399,7 @@ double RescalePositions(SiftData &siftData, float scale)
   dim3 blocks(iDivUp(siftData.numPts, 64));
   dim3 threads(64);
   RescalePositions<<<blocks, threads>>>(siftData.d_data, siftData.numPts, scale);
-  checkMsg("RescapePositions() execution failed\n");
+  checkMsg("RescalePositions() execution failed\n");
   return 0.0; 
 }
 
