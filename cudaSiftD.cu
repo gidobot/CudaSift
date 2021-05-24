@@ -395,9 +395,10 @@ __global__ void ExtractSiftDescriptorsCONSTNew(cudaTextureObject_t texObj, SiftP
       sums[idx/32] = sum;
     __syncthreads();
     float tsum1 = sums[0] + sums[1] + sums[2] + sums[3]; 
-    tsum1 = min(buffer[idx] * rsqrtf(tsum1), 0.2f);
+    tsum1 = min(fabs(buffer[idx] * rsqrtf(tsum1)), 0.2f);
      
-    sum = tsum1*tsum1; 
+    // sum = tsum1*tsum1;
+    sum = tsum1;
     for (int i=16;i>0;i/=2)
       sum += ShiftDown(sum, i);
     if ((idx&31)==0)
@@ -406,7 +407,8 @@ __global__ void ExtractSiftDescriptorsCONSTNew(cudaTextureObject_t texObj, SiftP
     
     float tsum2 = sums[0] + sums[1] + sums[2] + sums[3];
     float *desc = d_sift[bx].data;
-    desc[idx] = tsum1 * rsqrtf(tsum2);
+    // desc[idx] = tsum1 * rsqrtf(tsum2);
+    desc[idx] = sqrt(tsum1 / tsum2);
     if (idx==0) {
       d_sift[bx].xpos *= subsampling;
       d_sift[bx].ypos *= subsampling;
