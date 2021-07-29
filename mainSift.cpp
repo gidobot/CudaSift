@@ -36,8 +36,10 @@ int main(int argc, char **argv)
     cv::imread("data/left.pgm", 0).convertTo(limg, CV_32FC1);
     cv::imread("data/righ.pgm", 0).convertTo(rimg, CV_32FC1);
   } else {
-    cv::imread("data/img1.png", 0).convertTo(limg, CV_32FC1);
-    cv::imread("data/img2.png", 0).convertTo(rimg, CV_32FC1);
+    // cv::imread("data/img1.png", 0).convertTo(limg, CV_32FC1);
+    // cv::imread("data/img2.png", 0).convertTo(rimg, CV_32FC1);
+    cv::imread("data/img1_uw.png", 0).convertTo(limg, CV_32FC1);
+    cv::imread("data/img2_uw.png", 0).convertTo(rimg, CV_32FC1);
   }
   //cv::flip(limg, rimg, -1);
   unsigned int w = limg.cols;
@@ -85,7 +87,7 @@ int main(int argc, char **argv)
   PrintMatchData(siftData1, siftData2, img1);
   cv::imwrite("data/limg_pts.pgm", limg);
 
-  //MatchAll(siftData1, siftData2, homography);
+  MatchAll(siftData1, siftData2, homography);
   
   // Free Sift data from device
   FreeSiftData(siftData1);
@@ -112,7 +114,8 @@ void MatchAll(SiftData &siftData1, SiftData &siftData2, float *homography)
 #endif
   for (int i=0;i<numPts1;i++) {
     float *data1 = sift1[i].data;
-    std::cout << i << ":" << sift1[i].scale << ":" << (int)sift1[i].orientation << " " << sift1[i].xpos << " " << sift1[i].ypos << std::endl;
+    // std::cout << i << ":" << sift1[i].scale << ":" << (int)sift1[i].orientation << " " << sift1[i].xpos << " " << sift1[i].ypos << std::endl;
+    std::cout << i << ": " << "score=" << sift1[i].score << "  ambiguity=" << sift1[i].ambiguity << std::endl;
     bool found = false;
     for (int j=0;j<numPts2;j++) {
       float *data2 = sift2[j].data;
@@ -167,14 +170,14 @@ void PrintMatchData(SiftData &siftData1, SiftData &siftData2, CudaImage &img)
       float dx = sift2[k].xpos - sift1[j].xpos;
       float dy = sift2[k].ypos - sift1[j].ypos;
 #if 0
-      if (false && sift1[j].xpos>550 && sift1[j].xpos<600) {
-	std::cout << "pos1=(" << (int)sift1[j].xpos << "," << (int)sift1[j].ypos << ") ";
-	std::cout << j << ": " << "score=" << sift1[j].score << "  ambiguity=" << sift1[j].ambiguity << "  match=" << k << "  ";
-	std::cout << "scale=" << sift1[j].scale << "  ";
-	std::cout << "error=" << (int)sift1[j].match_error << "  ";
-	std::cout << "orient=" << (int)sift1[j].orientation << "," << (int)sift2[k].orientation << "  ";
-	std::cout << " delta=(" << (int)dx << "," << (int)dy << ")" << std::endl;
-      }
+  if (false && sift1[j].xpos>550 && sift1[j].xpos<600) {
+  	std::cout << "pos1=(" << (int)sift1[j].xpos << "," << (int)sift1[j].ypos << ") ";
+  	std::cout << j << ": " << "score=" << sift1[j].score << "  ambiguity=" << sift1[j].ambiguity << "  match=" << k << "  ";
+  	std::cout << "scale=" << sift1[j].scale << "  ";
+  	std::cout << "error=" << (int)sift1[j].match_error << "  ";
+  	std::cout << "orient=" << (int)sift1[j].orientation << "," << (int)sift2[k].orientation << "  ";
+  	std::cout << " delta=(" << (int)dx << "," << (int)dy << ")" << std::endl;
+  }
 #endif
 #if 1
       int len = (int)(fabs(dx)>fabs(dy) ? fabs(dx) : fabs(dy));
