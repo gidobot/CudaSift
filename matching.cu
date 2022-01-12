@@ -1,6 +1,7 @@
 #include "cudaSift.h"
 #include "cudautils.h"
 
+
 //================= Device matching functions =====================//
 
 __global__ void MatchSiftPoints(SiftPoint *sift1, SiftPoint *sift2, float *corrData, int numPts1, int numPts2)
@@ -307,8 +308,9 @@ __global__ void FindMaxCorr10(SiftPoint *sift1, SiftPoint *sift2, int numPts1, i
   int bp1 = M7W*blockIdx.x;
   for (int j=ty;j<M7W;j+=M7H/M7R) {    
     int p1 = min(bp1 + j, numPts1 - 1);
-    for (int d=tx;d<NDIM/4;d+=M7W)
+    for (int d=tx;d<NDIM/4;d+=M7W) {
       buffer1[j*NDIM/4 + (d + j)%(NDIM/4)] = ((float4*)&sift1[p1].data)[d];
+    }
   }
       
   float max_score[NRX];
@@ -381,12 +383,12 @@ __global__ void FindMaxCorr10(SiftPoint *sift1, SiftPoint *sift2, int numPts1, i
     int index = indices[tx];
     for (int y=0;y<M7H/M7R;y++)
       if (index != indices[y*M7W + tx]) {
-	if (scores1[y*M7W + tx]>max_score) {
-	  sec_score = max(max_score, sec_score);
-	  max_score = scores1[y*M7W + tx]; 
-	  index = indices[y*M7W + tx];
-	} else if (scores1[y*M7W + tx]>sec_score)
-	  sec_score = scores1[y*M7W + tx];
+      	if (scores1[y*M7W + tx]>max_score) {
+      	  sec_score = max(max_score, sec_score);
+      	  max_score = scores1[y*M7W + tx]; 
+      	  index = indices[y*M7W + tx];
+      	} else if (scores1[y*M7W + tx]>sec_score)
+	         sec_score = scores1[y*M7W + tx];
       }
     sift1[bp1 + tx].score = max_score;
     sift1[bp1 + tx].match = index;
@@ -1204,4 +1206,32 @@ double MatchSiftData(SiftData &data1, SiftData &data2)
 #endif
   return gpuTime;
 }		 
+
+void DescriptorsCVtoCUDA(const cv::Mat &desc, SiftData &data)
+{
+  const int num = desc.rows;  
+  // FreeSiftData(data);
+  InitSiftData(data, num, true, true);
+  data.numPts = num;
+
+  #ifdef MANAGEDMEM
+    SiftPoint *sift = data.m_data;
+  #else
+    SiftPoint *sift = data.h_data;
+  #endif
+
+  cv::Mat row;
+  for (int i=0; i<num; i++) {
+    row = desc.row(i);
+    std::memcpy(sift[i].data, row.data, 128*sizeof(float));
+  }
+
+  // Copy to host memory if not managed
+  if (data.h_data!=NULL) {
+    float *h_ptr = &data.h_data[0].score;
+    float *d_ptr = &data.d_data[0].score;
+    safeCall(cudaMemcpy2D(d_ptr, sizeof(SiftPoint), h_ptr, sizeof(SiftPoint), 5*sizeof(float), num, cudaMemcpyHostToDevice));
+  }
+}
+
   

@@ -2,6 +2,9 @@
 #define CUDASIFT_H
 
 #include "cudaImage.h"
+#include <opencv2/opencv.hpp>
+#include <stdio.h>
+#include <iostream>
 
 typedef struct {
   float xpos;
@@ -41,5 +44,7 @@ void FreeSiftData(SiftData &data);
 void PrintSiftData(SiftData &data);
 double MatchSiftData(SiftData &data1, SiftData &data2);
 double FindHomography(SiftData &data,  float *homography, int *numMatches, int numLoops = 1000, float minScore = 0.85f, float maxAmbiguity = 0.95f, float thresh = 5.0f);
+
+void DescriptorsCVtoCUDA(const cv::Mat &desc, SiftData &data);
 
 #endif
