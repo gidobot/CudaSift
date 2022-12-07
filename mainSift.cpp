@@ -40,11 +40,11 @@ int main(int argc, char **argv)
   cv::Mat limg, rimg;
   // cv::imread("data/img1.png", 0).convertTo(limg, CV_32FC1);
   // cv::imread("data/img2.png", 0).convertTo(rimg, CV_32FC1);
-  cv::Mat imLeft = cv::imread("data/fish.png",CV_LOAD_IMAGE_UNCHANGED);
-  cv::Mat imRight = cv::imread("data/left.png",CV_LOAD_IMAGE_UNCHANGED);
+  cv::Mat imLeft = cv::imread("data/fish.png",cv::IMREAD_UNCHANGED);
+  cv::Mat imRight = cv::imread("data/left.png",cv::IMREAD_UNCHANGED);
 
-  cv::cvtColor(imLeft, imLeft, CV_BGR2GRAY);
-  cv::cvtColor(imRight, imRight, CV_BGR2GRAY);
+  cv::cvtColor(imLeft, imLeft, cv::COLOR_BGR2RGB);
+  cv::cvtColor(imRight, imRight, cv::COLOR_BGR2RGB);
   imLeft.convertTo(limg, CV_32FC1);
   imRight.convertTo(rimg, CV_32FC1);
   double minVal; double maxVal;
@@ -120,7 +120,7 @@ void PlotMatches(cv::Mat &img1, cv::Mat &img2, std::vector<cv::KeyPoint> kpts1, 
 
   cv::Mat matchImg;
   cv::drawMatches(img1, kpts1, img2, kpts2, inliers, matchImg, cv::Scalar::all(-1), cv::Scalar::all(-1));
-  cv::namedWindow("Matches", CV_WINDOW_NORMAL);
+  cv::namedWindow("Matches", cv::WINDOW_NORMAL);
   cv::imshow("Matches", matchImg);
   cv::resizeWindow("Matches", 600, 600);
   cv::waitKey(0);
