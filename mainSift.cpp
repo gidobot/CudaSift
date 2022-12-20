@@ -21,6 +21,7 @@ void PrintMatchData(SiftData &siftData1, SiftData &siftData2, CudaImage &img);
 void MatchAll(SiftData &siftData1, SiftData &siftData2, float *homography);
 void FindEssentialMatrix(SiftData &siftData1, SiftData &siftData2);
 void FindEssentialMatrixCV(SiftData &siftData1, SiftData &siftData2, cv::Mat &img1, cv::Mat &img2);
+void FindEssentialMatrixStereo(SiftData &siftData1, SiftData &siftData2, cv::Mat &img1, cv::Mat &img2);
 void PlotMatches(cv::Mat &img1, cv::Mat &img2, std::vector<cv::KeyPoint> kpts1, std::vector<cv::KeyPoint> kpts2, std::vector<cv::DMatch> matches, std::vector<int32_t> good);
 
 double ScaleUp(CudaImage &res, CudaImage &src);
@@ -40,11 +41,12 @@ int main(int argc, char **argv)
   cv::Mat limg, rimg;
   // cv::imread("data/img1.png", 0).convertTo(limg, CV_32FC1);
   // cv::imread("data/img2.png", 0).convertTo(rimg, CV_32FC1);
-  cv::Mat imLeft = cv::imread("data/fish.png",cv::IMREAD_UNCHANGED);
-  cv::Mat imRight = cv::imread("data/left.png",cv::IMREAD_UNCHANGED);
+  // cv::Mat imLeft = cv::imread("data/fish.png",cv::IMREAD_UNCHANGED);
+  cv::Mat imLeft = cv::imread("data/left.png",cv::IMREAD_UNCHANGED);
+  cv::Mat imRight = cv::imread("data/right.png",cv::IMREAD_UNCHANGED);
 
-  cv::cvtColor(imLeft, imLeft, cv::COLOR_BGR2RGB);
-  cv::cvtColor(imRight, imRight, cv::COLOR_BGR2RGB);
+  // cv::cvtColor(imLeft, imLeft, cv::COLOR_BGR2RGB);
+  // cv::cvtColor(imRight, imRight, cv::COLOR_BGR2RGB);
   imLeft.convertTo(limg, CV_32FC1);
   imRight.convertTo(rimg, CV_32FC1);
   double minVal; double maxVal;
@@ -71,9 +73,9 @@ int main(int argc, char **argv)
   float initBlur = 1.6f;
   // float thresh = (imgSet ? 4.5f : 3.0f);
   // float thresh = (imgSet ? 4.5f : 1.5f);
-  float thresh = 1.6f;
-  InitSiftData(siftData1, 6000, true, true); 
-  InitSiftData(siftData2, 6000, true, true);
+  float thresh = 1.2f;
+  InitSiftData(siftData1, 4000, true, true); 
+  InitSiftData(siftData2, 4000, true, true);
   
   // A bit of benchmarking 
   //for (int thresh1=1.00f;thresh1<=4.01f;thresh1+=0.50f) {
@@ -96,7 +98,8 @@ int main(int argc, char **argv)
     // std::cout << "Number of matching features: " << numFit << " " << numMatches << " " << 100.0f*numFit/std::min(siftData1.numPts, siftData2.numPts) << "% " << initBlur << " " << thresh << std::endl;
     //}
     // FindEssentialMatrix(siftData1, siftData2);
-    FindEssentialMatrixCV(siftData1, siftData2, imLeft, imRight);
+    // FindEssentialMatrixCV(siftData1, siftData2, imLeft, imRight);
+    FindEssentialMatrixStereo(siftData1, siftData2, imLeft, imRight);
   
   // Print out and store summary data
   PrintMatchData(siftData1, siftData2, img1);
@@ -235,6 +238,114 @@ void FindEssentialMatrixCV(SiftData &siftData1, SiftData &siftData2, cv::Mat &im
   cout << "Inliers: " << inliers.size() << endl;
   cout << "Percentage inliers: " << 100.0f*inliers.size()/goodMatches.size() << "%" << endl;
 
+  PlotMatches(img1, img2, kpts1, kpts2, goodMatches, inliers);
+}
+void FindEssentialMatrixStereo(SiftData &siftData1, SiftData &siftData2, cv::Mat &img1, cv::Mat &img2)
+{
+#ifdef MANAGEDMEM
+  SiftPoint *sift1 = siftData1.m_data;
+  SiftPoint *sift2 = siftData2.m_data;
+#else
+  SiftPoint *sift1 = siftData1.h_data;
+  SiftPoint *sift2 = siftData2.h_data;
+#endif
+  int numPts1 = siftData1.numPts;
+  int numPts2 = siftData2.numPts;
+
+  vector<cv::KeyPoint> kpts1;
+  vector<cv::KeyPoint> kpts2;
+  cv::Mat desc1 = cv::Mat(numPts1, 128, CV_32F);
+  cv::Mat desc2 = cv::Mat(numPts2, 128, CV_32F);
+
+  cv::Mat row;
+  for (int32_t i=0; i<numPts1; i++) {
+    kpts1.push_back(cv::KeyPoint(sift1[i].xpos, sift1[i].ypos, sift1[i].scale, sift1[i].orientation, 1, (int32_t)log2(sift1[i].subsampling)));
+    row = desc1.row(i);
+    std::memcpy(row.data, sift1[i].data, 128*sizeof(float));
+  }
+
+  for (int32_t i=0; i<numPts2; i++) {
+    kpts2.push_back(cv::KeyPoint(sift2[i].xpos, sift2[i].ypos, sift2[i].scale, sift2[i].orientation, 1, (int32_t)log2(sift2[i].subsampling)));
+    row = desc2.row(i);
+    std::memcpy(row.data, sift2[i].data, 128*sizeof(float));
+  }
+
+  // matching descriptors
+  cv::Ptr<cv::DescriptorMatcher> matcher;
+  // cv::BFMatcher matcher(cv::NORM_L2, true);
+  matcher = cv::BFMatcher::create(cv::NORM_L2);
+  vector<vector<cv::DMatch>> matches;
+  vector<cv::DMatch> goodMatches;
+  matcher->knnMatch(desc1, desc2, matches, 2);
+
+  for (int i=0; i<matches.size(); i++)
+  {
+    if (matches[i][0].distance < 0.90 * matches[i][1].distance)
+      goodMatches.push_back(matches[i][0]);
+  }
+
+  cout << "Initial matches: " << goodMatches.size() << endl;
+
+  // copy matched points into cv vector
+  std::vector<cv::Point2d> pointsLeft(goodMatches.size());
+  std::vector<cv::Point2d> pointsRight(goodMatches.size());
+
+  for(size_t i = 0; i < goodMatches.size(); i++) {
+    int iF = goodMatches[i].queryIdx;
+    int iS = goodMatches[i].trainIdx;
+
+    cv::KeyPoint kF = kpts1[iF];
+    cv::KeyPoint kS = kpts2[iS];
+
+    pointsLeft[i] = cv::Point2f(kF.pt);
+    pointsRight[i] = cv::Point2f(kS.pt);
+  }
+
+  // vectors for rectified points
+  std::vector<cv::Point2d> pointsRect1;
+  std::vector<cv::Point2d> pointsRect2;
+
+  double fx2 = 1899.8417;
+  double fy2 = 1899.8417;
+  double cx2 = 1202.86649;
+  double cy2 = 985.03928; 
+
+  cv::Mat K2 = (cv::Mat_<double>(3,3) << fx2, 0.f, cx2, 0.f, fy2, cy2, 0.f, 0.f, 1.f); 
+  cv::Mat D2 = (cv::Mat_<double>(1,4) << 0, 0, 0, 0);
+
+  // rectify points to normalized image coordinates
+  cv::undistortPoints(pointsLeft, pointsRect1, K2, D2);
+  cv::undistortPoints(pointsRight, pointsRect2, K2, D2);
+
+  // find essential matrix with 5-point algorithm
+  double focal = 1.0;
+  cv::Point2d pp(0,0);
+  float prob = 0.999;
+  float thresh = 0.5/1000.0;
+  int method = cv::RANSAC;
+  cv::Mat mask;
+  cv::Mat essentialMat = cv::findEssentialMat(pointsRect1, pointsRect2, focal, pp, method, prob, thresh, mask);
+
+  vector<int32_t> inliers;
+
+  for(int i = 0; i < mask.rows; i++) {
+    if(mask.at<unsigned char>(i)){
+      inliers.push_back(i);
+    }
+  }
+
+  cout << "Inliers: " << inliers.size() << endl;
+  cout << "Percentage inliers: " << 100.0f*inliers.size()/goodMatches.size() << "%" << endl;
+
+  vector<int32_t> all;
+
+  for(int i = 0; i < goodMatches.size(); i++) {
+    all.push_back(i);
+  }
+
+  cout << "All matches" << endl;
+  PlotMatches(img1, img2, kpts1, kpts2, goodMatches, all);
+  cout << "Inlier matches" << endl;
   PlotMatches(img1, img2, kpts1, kpts2, goodMatches, inliers);
 }
 
