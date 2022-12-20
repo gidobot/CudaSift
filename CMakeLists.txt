@@ -47,6 +47,11 @@ set(sources
   mainSift.cpp  
 )
 
+set(sources_demo
+  geomFuncs.cpp  
+  mainSiftDemo.cpp  
+)
+
 include_directories(
   ${OpenCV_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR} 
@@ -55,20 +60,26 @@ include_directories(
 #SET(CUDA_SEPARABLE_COMPILATION ON)
 
 cuda_add_executable(cudasift ${cuda_sources} ${sources} OPTIONS -arch=sm_35)
+cuda_add_executable(cudasiftdemo ${cuda_sources} ${sources_demo} OPTIONS -arch=sm_35)
 
 #cuda_add_executable(l2net l2netD.cu OPTIONS -arch=sm_35)
 
 set_target_properties(cudasift PROPERTIES
   COMPILE_FLAGS "${EXTRA_CXX_FLAGS}"			   
 )
+set_target_properties(cudasiftdemo PROPERTIES
+  COMPILE_FLAGS "${EXTRA_CXX_FLAGS}"         
+)
 
 target_link_libraries(cudasift ${CUDA_cudadevrt_LIBRARY} ${OpenCV_LIBS})
+target_link_libraries(cudasiftdemo ${CUDA_cudadevrt_LIBRARY} ${OpenCV_LIBS})
 #  /usr/local/cuda/lib64/libcudadevrt.a ${OpenCV_LIBS} 
 #)
  
 install(FILES 
   ${cuda_sources} 
   ${sources}
+  ${sources_demo}
   cudaSiftD.cu
   CMakeLists.txt
   Copyright.txt
