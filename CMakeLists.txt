@@ -59,6 +59,8 @@ include_directories(
 
 #SET(CUDA_SEPARABLE_COMPILATION ON)
 
+set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
+
 cuda_add_executable(cudasift ${cuda_sources} ${sources} OPTIONS -arch=sm_35)
 cuda_add_executable(cudasiftdemo ${cuda_sources} ${sources_demo} OPTIONS -arch=sm_35)
 
@@ -85,6 +87,6 @@ install(FILES
   Copyright.txt
   DESTINATION .
 )
-install(FILES data/left.pgm data/righ.pgm
+install(FILES data/left.pgm data/right.pgm
   DESTINATION data
 )

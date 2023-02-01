@@ -1086,6 +1086,15 @@ double FindHomography(SiftData &data, float *homography, int *numMatches, int nu
   return gpuTime;
 }
 
+void CopyToDevice(SiftData &data)
+{
+  if (data.h_data!=NULL) {
+    float *h_ptr = &data.h_data[0].xpos;
+    float *d_ptr = &data.d_data[0].xpos;
+    safeCall(cudaMemcpy2D(d_ptr, sizeof(SiftPoint), h_ptr, sizeof(SiftPoint), 6*sizeof(float), data.numPts, cudaMemcpyHostToDevice));
+  }
+}
+
 
 double MatchSiftData(SiftData &data1, SiftData &data2)
 {
