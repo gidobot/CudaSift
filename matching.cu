@@ -1093,7 +1093,18 @@ void CopyToDevice(SiftData &data)
   if (data.h_data!=NULL) {
     float *h_ptr = &data.h_data[0].xpos;
     float *d_ptr = &data.d_data[0].xpos;
-    safeCall(cudaMemcpy2D(d_ptr, sizeof(SiftPoint), h_ptr, sizeof(SiftPoint), 6*sizeof(float), data.numPts, cudaMemcpyHostToDevice));
+    // safeCall(cudaMemcpy2D(d_ptr, sizeof(SiftPoint), h_ptr, sizeof(SiftPoint), 6*sizeof(float), data.numPts, cudaMemcpyHostToDevice));
+    safeCall(cudaMemcpy2D(d_ptr, sizeof(SiftPoint), h_ptr, sizeof(SiftPoint), sizeof(SiftPoint), data.numPts, cudaMemcpyHostToDevice));
+  }
+}
+
+void CopyToHost(SiftData &data)
+{
+  if (data.h_data!=NULL) {
+    float *h_ptr = &data.h_data[0].xpos;
+    float *d_ptr = &data.d_data[0].xpos;
+    // safeCall(cudaMemcpy2D(h_ptr, sizeof(SiftPoint), d_ptr, sizeof(SiftPoint), 6*sizeof(float), data.numPts, cudaMemcpyDeviceToHost));
+    safeCall(cudaMemcpy2D(h_ptr, sizeof(SiftPoint), d_ptr, sizeof(SiftPoint), sizeof(SiftPoint), data.numPts, cudaMemcpyDeviceToHost));
   }
 }
 

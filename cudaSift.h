@@ -45,6 +45,7 @@ void PrintSiftData(SiftData &data);
 double MatchSiftData(SiftData &data1, SiftData &data2);
 double FindHomography(SiftData &data,  float *homography, int *numMatches, int numLoops = 1000, float minScore = 0.85f, float maxAmbiguity = 0.95f, float thresh = 5.0f);
 void CopyToDevice(SiftData &data);
+void CopyToHost(SiftData &data);
 
 void DescriptorsCVtoCUDA(const cv::Mat &desc, SiftData &data);
 
