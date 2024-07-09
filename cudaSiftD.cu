@@ -415,6 +415,28 @@ __global__ void ExtractSiftDescriptorsCONSTNew(cudaTextureObject_t texObj, SiftP
     __syncthreads();
   }
 }
+
+__global__ void ExtractPatch(cudaTextureObject_t texObj, SiftPoint *d_sift,  float subsampling, int octave)
+{
+    int patchX = blockIdx.x * blockDim.x + threadIdx.x;
+    int patchY = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (patchX >= PATCH_SIZE || patchY >= PATCH_SIZE) return;
+
+    // Calculate the coordinates in the input image with scaling
+    float u = centerX + ((patchX - PATCH_SIZE / 2) * cosTheta - (patchY - PATCH_SIZE / 2) * sinTheta) * scale;
+    float v = centerY + ((patchX - PATCH_SIZE / 2) * sinTheta + (patchY - PATCH_SIZE / 2) * cosTheta) * scale;
+
+    int srcX = roundf(u);
+    int srcY = roundf(v);
+
+    // Check if coordinates are within the image bounds
+    if (srcX >= 0 && srcX < imageWidth && srcY >= 0 && srcY < imageHeight) {
+        outputPatch[patchY * PATCH_SIZE + patchX] = inputImage[srcY * imageWidth + srcX];
+    } else {
+        outputPatch[patchY * PATCH_SIZE + patchX] = 0; // Assign 0 to out-of-bounds areas
+    }
+}
  
 
 __global__ void ExtractSiftDescriptorsCONST(cudaTextureObject_t texObj, SiftPoint *d_sift, float subsampling, int octave)

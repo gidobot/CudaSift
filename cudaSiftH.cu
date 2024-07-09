@@ -217,6 +217,7 @@ void ExtractSiftOctave(SiftData &siftData, CudaImage &img, int octave, float thr
 #endif
   ComputeOrientations(texObj, img, siftData, octave); 
   ExtractSiftDescriptors(texObj, siftData, subsampling, octave); 
+  ExtractPatches(texObj, siftData, patchData, subsampling, octave);
   //OrientAndExtract(texObj, siftData, subsampling, octave); 
   
   safeCall(cudaDestroyTextureObject(texObj));
@@ -378,6 +379,19 @@ double ExtractSiftDescriptors(cudaTextureObject_t texObj, SiftData &siftData, fl
   ExtractSiftDescriptorsCONSTNew<<<blocks, threads>>>(texObj, siftData.d_data, subsampling, octave);
 #endif
   checkMsg("ExtractSiftDescriptors() execution failed\n");
+  return 0.0; 
+}
+
+double ExtractPatches(cudaTextureObject_t texObj, SiftData &siftData, float *patchData, float subsampling, int octave)
+{
+  dim3 blocks(2, 2); 
+  dim3 threads(16, 16);
+#ifdef MANAGEDMEM
+  ExtractPatchesCONST<<<blocks, threads>>>(texObj, siftData.m_data, subsampling, octave);
+#else
+  ExtractPatchesCONSTNew<<<blocks, threads>>>(texObj, siftData.d_data, subsampling, octave);
+#endif
+  checkMsg("ExtractPatches() execution failed\n");
   return 0.0; 
 }
 
