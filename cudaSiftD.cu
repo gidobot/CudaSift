@@ -416,28 +416,98 @@ __global__ void ExtractSiftDescriptorsCONSTNew(cudaTextureObject_t texObj, SiftP
   }
 }
 
-__global__ void ExtractPatch(cudaTextureObject_t texObj, SiftPoint *d_sift,  float subsampling, int octave)
+__global__ void ExtractPatchesCONST(cudaTextureObject_t texObj, SiftPoint *d_sift, float *patchData, float *mean,  float subsampling, int octave)
 {
-    int patchX = blockIdx.x * blockDim.x + threadIdx.x;
-    int patchY = blockIdx.y * blockDim.y + threadIdx.y;
+  // __shared__ float rmean, rmean_old, rstd, count;
+  __shared__ float sum;
 
-    if (patchX >= PATCH_SIZE || patchY >= PATCH_SIZE) return;
+  const int tx = threadIdx.x; // 0 -> 32
+  const int ty = threadIdx.y; // 0 -> 32
+  const int idx = ty*32 + tx;
 
-    // Calculate the coordinates in the input image with scaling
-    float u = centerX + ((patchX - PATCH_SIZE / 2) * cosTheta - (patchY - PATCH_SIZE / 2) * sinTheta) * scale;
-    float v = centerY + ((patchX - PATCH_SIZE / 2) * sinTheta + (patchY - PATCH_SIZE / 2) * cosTheta) * scale;
+  int fstPts = min(d_PointCounter[2*octave-1], d_MaxNumPoints);
+  int totPts = min(d_PointCounter[2*octave+1], d_MaxNumPoints);
+  for (int bx = blockIdx.x + fstPts; bx < totPts; bx += gridDim.x) {
+    if (idx==0)
+      sum = 0.0;
+    __syncthreads();
+    
+    // Compute angles and gradients
+    float scale = d_sift[bx].scale;
+    // float rad = 3.0f*scale*0.5f*sqrtf(2.0f)*5.0f*0.5f/32.0f;
+    float rad = 3.0f*scale*0.5f*sqrtf(2.0f)*5.0f/32.0f;
+    float theta = 2.0f*3.1415f/360.0f*d_sift[bx].orientation;
+    float sina = sinf(theta);           // cosa -sina
+    float cosa = cosf(theta);           // sina  cosa
+    float ssina = rad*sina; 
+    float scosa = rad*cosa;
 
-    int srcX = roundf(u);
-    int srcY = roundf(v);
+    float xpos = d_sift[bx].xpos + (tx - 16.0f)*scosa - (ty - 16.0f)*ssina;
+    float ypos = d_sift[bx].ypos + (tx - 16.0f)*ssina + (ty - 16.0f)*scosa;
 
-    // Check if coordinates are within the image bounds
-    if (srcX >= 0 && srcX < imageWidth && srcY >= 0 && srcY < imageHeight) {
-        outputPatch[patchY * PATCH_SIZE + patchX] = inputImage[srcY * imageWidth + srcX];
-    } else {
-        outputPatch[patchY * PATCH_SIZE + patchX] = 0; // Assign 0 to out-of-bounds areas
+    patchData[bx*32*32 + idx] = tex2D<float>(texObj, xpos, ypos);
+
+    atomicAdd(&sum, patchData[bx*32*32 + idx]);
+    // atomicAdd(&sumx2, patchData[bx*32*32 + idx]*patchData[bx*32*32 + idx]);
+
+    // atomicAdd(&count, 1.0f);
+    // if (idx==0) {
+    //   rmean_old = patchData[bx*32*32 + idx];
+    //   rmean = 0.0;
+    //   rstd = 0.0f;
+    // }
+    // __syncthreads();
+
+    // if (idx>0) {
+    //   rmean = rmean_old + (patchData[bx*32*32 + idx] - rmean_old)/count;
+    //   rstd = rstd + (patchData[bx*32*32 + idx] - rmean_old)*(patchData[bx*32*32 + idx] - rmean);
+    //   rmean_old = rmean;
+    // }
+
+    __syncthreads();
+    if (idx==0) {
+      mean[bx] = sum / (32.0f*32.0f);
+      // stddev[bx] = sqrtf(sumx2/(32.0f*32.0f) - mean[bx]*mean[bx]);
+      // stddev[bx] = sqrtf((sumx2 - (sum*sum)/(32.0f*32.0f))/(32.0f*32.0f-1));
+      // printf("mean %f stddev %f\n", mean[bx], stddev[bx]);
     }
+  }
 }
- 
+
+__global__ void GetPatchesStddevCONST(float *patchData, float *mean, float *stddev, int octave)
+{
+  __shared__ float sum;
+
+  const int tx = threadIdx.x; // 0 -> 32
+  const int ty = threadIdx.y; // 0 -> 32
+  const int idx = ty*32 + tx;
+
+  int fstPts = min(d_PointCounter[2*octave-1], d_MaxNumPoints);
+  int totPts = min(d_PointCounter[2*octave+1], d_MaxNumPoints);
+  for (int bx = blockIdx.x + fstPts; bx < totPts; bx += gridDim.x) {
+    if (idx==0)
+      sum = 0.0;
+    __syncthreads();
+    atomicAdd(&sum, (patchData[bx*32*32 + idx]-mean[bx]) * (patchData[bx*32*32 + idx]-mean[bx]));
+    __syncthreads();
+    if (idx==0)
+      stddev[bx] = sqrtf(sum/(32.0f*32.0f));
+  }
+}
+
+__global__ void NormalizePatchesCONST(float *patchData, float *mean, float *stddev, int octave)
+{
+  const int tx = threadIdx.x; // 0 -> 32
+  const int ty = threadIdx.y; // 0 -> 32
+  const int idx = ty*32 + tx;
+
+  int fstPts = min(d_PointCounter[2*octave-1], d_MaxNumPoints);
+  int totPts = min(d_PointCounter[2*octave+1], d_MaxNumPoints);
+  for (int bx = blockIdx.x + fstPts; bx < totPts; bx += gridDim.x) {
+    patchData[bx*32*32 + idx] = (patchData[bx*32*32 + idx] - mean[bx]) / stddev[bx];
+    __syncthreads();
+  }
+}
 
 __global__ void ExtractSiftDescriptorsCONST(cudaTextureObject_t texObj, SiftPoint *d_sift, float subsampling, int octave)
 {

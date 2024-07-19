@@ -16,6 +16,10 @@
 
 #include "cudaSiftD.cu"
 
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+
 void InitCuda(int devNum)
 {
   int nDevices;
@@ -138,6 +142,7 @@ void ExtractSift(SiftData &siftData, CudaImage &img, int numOctaves, double init
 #else
   if (siftData.h_data)
     safeCall(cudaMemcpy(siftData.h_data, siftData.d_data, sizeof(SiftPoint)*siftData.numPts, cudaMemcpyDeviceToHost));
+    safeCall(cudaMemcpy(siftData.h_patch_data, siftData.d_patch_data, sizeof(float)*32*32*siftData.numPts, cudaMemcpyDeviceToHost));
 #endif
   double totTime = timer.read();
   // printf("Incl prefiltering & memcpy =  %.2f ms %d\n\n", totTime, siftData.numPts);
@@ -215,10 +220,73 @@ void ExtractSiftOctave(SiftData &siftData, CudaImage &img, int octave, float thr
   double gpuTimeDoG = timer1.read();
   TimerGPU timer4;
 #endif
+
+  /////////////////// TESTING
+  //// Plot scaled image
+  // std::vector<float> h_data(img.height*img.pitch);
+  // // safeCall(cudaMemcpy2D(h_data.data(), img.pitch*sizeof(float), img.d_data, img.pitch*sizeof(float), img.width*sizeof(float), img.height, cudaMemcpyDeviceToHost));
+  // safeCall(cudaMemcpy(h_data.data(), img.d_data, img.pitch*img.height*sizeof(float), cudaMemcpyDeviceToHost));
+  // cv::Mat cv_img(img.height, img.width, CV_32F, h_data.data(), img.pitch*sizeof(float));
+  // cv::normalize(cv_img, cv_img, 0, 1, cv::NORM_MINMAX);
+  // cv::imshow("image", cv_img);
+  // cv::waitKey(0);
+  // std::cout << "height, width, pitch: " << img.height << ", " << img.width << ", " << img.pitch << std::endl;
+  //// Plot patches
+  ///////////////////
+
   ComputeOrientations(texObj, img, siftData, octave); 
+  ExtractPatches(texObj, siftData, subsampling, octave); // Must call before ExtractSiftDescriptors as scale params are modified in that function
+  //////////////////// TESTING PLOT PATCHES PRE
+  // unsigned int *d_PointCounterAddr;
+  // safeCall(cudaGetSymbolAddress((void**)&d_PointCounterAddr, d_PointCounter));
+  // unsigned int fstPts, totPts;
+  // safeCall(cudaMemcpy(&fstPts, &d_PointCounterAddr[2*octave-1], sizeof(int), cudaMemcpyDeviceToHost)); 
+  // safeCall(cudaMemcpy(&totPts, &d_PointCounterAddr[2*octave+1], sizeof(int), cudaMemcpyDeviceToHost));
+  // std::cout << "fstPts: " << fstPts << std::endl;
+  // std::cout << "totPts: " << totPts << std::endl;
+  // SiftPoint *h_data;
+  // h_data = (SiftPoint *)malloc(sizeof(SiftPoint)*totPts);
+  // safeCall(cudaMemcpy(h_data, siftData.d_data, sizeof(SiftPoint)*totPts, cudaMemcpyDeviceToHost));
+  // std::vector<float> h_patch(32*32);
+  // for (int k=fstPts; k<totPts; k++) {
+  //   for (int i=0; i<32*32; i++) {
+  //     int xpos = h_data[k].xpos + i%32 - 16;
+  //     int ypos = h_data[k].ypos + i/32 - 16;
+  //     if (xpos >= img.width || ypos >= img.height || xpos < 0 || ypos < 0)
+  //       h_patch[i] = 0.0;
+  //     else
+  //       safeCall(cudaMemcpy(&h_patch[i], &img.d_data[ypos*img.pitch + xpos], sizeof(float), cudaMemcpyDeviceToHost));
+  //   }
+  //   cv::Mat cv_img(32, 32, CV_32F, h_patch.data());
+  //   cv::normalize(cv_img, cv_img, 0, 1, cv::NORM_MINMAX);
+  //   cv::namedWindow("Patch", cv::WINDOW_NORMAL);
+  //   cv::imshow("Patch", cv_img);
+  //   cv::waitKey(0);
+  // }
+  // free(h_data);
+  /////////////////////
   ExtractSiftDescriptors(texObj, siftData, subsampling, octave); 
-  ExtractPatches(texObj, siftData, patchData, subsampling, octave);
   //OrientAndExtract(texObj, siftData, subsampling, octave); 
+
+  //////////////////// TESTING PLOT PATCHES POST
+  // unsigned int *d_PointCounterAddr;
+  // safeCall(cudaGetSymbolAddress((void**)&d_PointCounterAddr, d_PointCounter));
+  // unsigned int fstPts, totPts;
+  // safeCall(cudaMemcpy(&fstPts, &d_PointCounterAddr[2*octave-1], sizeof(int), cudaMemcpyDeviceToHost)); 
+  // safeCall(cudaMemcpy(&totPts, &d_PointCounterAddr[2*octave+1], sizeof(int), cudaMemcpyDeviceToHost));
+  // std::vector<float> h_patches(32*32*totPts);
+  // safeCall(cudaMemcpy(h_patches.data(), siftData.d_patch_data, sizeof(float)*32*32*totPts, cudaMemcpyDeviceToHost));
+  // std::vector<float> h_patch(32*32);
+  // for (int k=fstPts; k<totPts; k++) {
+  //   memcpy(h_patch.data(), &h_patches[k*32*32], sizeof(float)*32*32);
+  //   cv::Mat cv_img(32, 32, CV_32F, h_patch.data());
+  //   cv::normalize(cv_img, cv_img, 0, 1, cv::NORM_MINMAX);
+  //   cv::namedWindow("Patch", cv::WINDOW_NORMAL);
+  //   cv::imshow("Patch", cv_img);
+  //   cv::waitKey(0);
+  // }
+  /////////////////////
+
   
   safeCall(cudaDestroyTextureObject(texObj));
 #ifdef VERBOSE
@@ -247,6 +315,24 @@ void InitSiftData(SiftData &data, int num, bool host, bool dev)
   if (dev)
     safeCall(cudaMalloc((void **)&data.d_data, sz));
 #endif
+
+  // allocate space for patches
+  int sz_patch = sizeof(float)*32*32*num;
+#ifdef MANAGEDMEM
+  safeCall(cudaMallocManaged((void **)&data.m_patch_data, sz_patch));
+  safeCall(cudaMallocManaged((void **)&data.m_patch_mean, sizeof(float)*num));
+  safeCall(cudaMallocManaged((void **)&data.m_patch_stddev, sizeof(float)*num));
+#else
+  data.h_patch_data = NULL;
+  if (host)
+    data.h_patch_data = (float *)malloc(sz_patch);
+  data.d_patch_data = NULL;
+  if (dev)
+    safeCall(cudaMalloc((void **)&data.d_patch_data, sz_patch));
+    safeCall(cudaMalloc((void **)&data.d_patch_mean, sizeof(float)*num));
+    safeCall(cudaMalloc((void **)&data.d_patch_stddev, sizeof(float)*num));
+#endif
+
 }
 
 void FreeSiftData(SiftData &data)
@@ -262,6 +348,21 @@ void FreeSiftData(SiftData &data)
 #endif
   data.numPts = 0;
   data.maxPts = 0;
+
+  // free patch data
+#ifdef MANAGEDMEM
+  safeCall(cudaFree(data.m_patch_data));
+  safeCall(cudaFree(data.m_patch_mean));
+  safeCall(cudaFree(data.m_patch_stddev));
+#else
+  if (data.d_patch_data!=NULL)
+    safeCall(cudaFree(data.d_patch_data));
+    safeCall(cudaFree(data.d_patch_mean));
+    safeCall(cudaFree(data.d_patch_stddev));
+  data.d_patch_data = NULL;
+  if (data.h_patch_data!=NULL)
+    free(data.h_patch_data);
+#endif
 }
 
 void PrintSiftData(SiftData &data)
@@ -382,14 +483,18 @@ double ExtractSiftDescriptors(cudaTextureObject_t texObj, SiftData &siftData, fl
   return 0.0; 
 }
 
-double ExtractPatches(cudaTextureObject_t texObj, SiftData &siftData, float *patchData, float subsampling, int octave)
+double ExtractPatches(cudaTextureObject_t texObj, SiftData &siftData, float subsampling, int octave)
 {
-  dim3 blocks(2, 2); 
-  dim3 threads(16, 16);
+  dim3 blocks(512); 
+  dim3 threads(32, 32);
 #ifdef MANAGEDMEM
-  ExtractPatchesCONST<<<blocks, threads>>>(texObj, siftData.m_data, subsampling, octave);
+  ExtractPatchesCONST<<<blocks, threads>>>(texObj, siftData.m_data, siftData.m_patch_data, siftData.m_patch_mean, subsampling, octave);
+  GetPatchesStddevCONST<<<blocks, threads>>>(siftData.m_patch_data, siftData.m_patch_mean, siftData.m_patch_stddev, octave);
+  NormalizePatchesCONST<<<blocks, threads>>>(siftData.m_patch_data, siftData.m_patch_mean, siftData.m_patch_stddev, octave);
 #else
-  ExtractPatchesCONSTNew<<<blocks, threads>>>(texObj, siftData.d_data, subsampling, octave);
+  ExtractPatchesCONST<<<blocks, threads>>>(texObj, siftData.d_data, siftData.d_patch_data, siftData.d_patch_mean, subsampling, octave);
+  GetPatchesStddevCONST<<<blocks, threads>>>(siftData.d_patch_data, siftData.d_patch_mean, siftData.d_patch_stddev, octave);
+  NormalizePatchesCONST<<<blocks, threads>>>(siftData.d_patch_data, siftData.d_patch_mean, siftData.d_patch_stddev, octave);
 #endif
   checkMsg("ExtractPatches() execution failed\n");
   return 0.0; 

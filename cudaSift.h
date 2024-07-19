@@ -29,9 +29,16 @@ typedef struct {
   int maxPts;         // Number of allocated Sift points
 #ifdef MANAGEDMEM
   SiftPoint *m_data;  // Managed data
+  float *m_patch_data;  // Managed data
+  float *m_patch_mean;  // Managed data
+  float *m_patch_stddev;  // Managed data
 #else
   SiftPoint *h_data;  // Host (CPU) data
   SiftPoint *d_data;  // Device (GPU) data
+  float *h_patch_data;  // Host (CPU) data
+  float *d_patch_data;  // Device (GPU) data
+  float *d_patch_mean;  // Device (GPU) data
+  float *d_patch_stddev;  // Device (GPU) data
 #endif
 } SiftData;
 

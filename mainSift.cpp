@@ -42,8 +42,10 @@ int main(int argc, char **argv)
   // cv::imread("data/img1.png", 0).convertTo(limg, CV_32FC1);
   // cv::imread("data/img2.png", 0).convertTo(rimg, CV_32FC1);
   // cv::Mat imLeft = cv::imread("data/fish.png",cv::IMREAD_UNCHANGED);
-  cv::Mat imLeft = cv::imread("data/left.png",cv::IMREAD_UNCHANGED);
-  cv::Mat imRight = cv::imread("data/right.png",cv::IMREAD_UNCHANGED);
+  // cv::Mat imLeft = cv::imread("data/left.png",cv::IMREAD_UNCHANGED);
+  // cv::Mat imRight = cv::imread("data/right.png",cv::IMREAD_UNCHANGED);
+  cv::Mat imLeft = cv::imread("data/img1.png",cv::IMREAD_UNCHANGED);
+  cv::Mat imRight = cv::imread("data/img2.png",cv::IMREAD_UNCHANGED);
 
   // cv::cvtColor(imLeft, imLeft, cv::COLOR_BGR2RGB);
   // cv::cvtColor(imRight, imRight, cv::COLOR_BGR2RGB);
