@@ -434,7 +434,6 @@ __global__ void ExtractPatchesCONST(cudaTextureObject_t texObj, SiftPoint *d_sif
     
     // Compute angles and gradients
     float scale = d_sift[bx].scale;
-    // float rad = 3.0f*scale*0.5f*sqrtf(2.0f)*5.0f*0.5f/32.0f;
     float rad = 3.0f*scale*0.5f*sqrtf(2.0f)*5.0f/32.0f;
     float theta = 2.0f*3.1415f/360.0f*d_sift[bx].orientation;
     float sina = sinf(theta);           // cosa -sina
@@ -448,29 +447,9 @@ __global__ void ExtractPatchesCONST(cudaTextureObject_t texObj, SiftPoint *d_sif
     patchData[bx*32*32 + idx] = tex2D<float>(texObj, xpos, ypos);
 
     atomicAdd(&sum, patchData[bx*32*32 + idx]);
-    // atomicAdd(&sumx2, patchData[bx*32*32 + idx]*patchData[bx*32*32 + idx]);
-
-    // atomicAdd(&count, 1.0f);
-    // if (idx==0) {
-    //   rmean_old = patchData[bx*32*32 + idx];
-    //   rmean = 0.0;
-    //   rstd = 0.0f;
-    // }
-    // __syncthreads();
-
-    // if (idx>0) {
-    //   rmean = rmean_old + (patchData[bx*32*32 + idx] - rmean_old)/count;
-    //   rstd = rstd + (patchData[bx*32*32 + idx] - rmean_old)*(patchData[bx*32*32 + idx] - rmean);
-    //   rmean_old = rmean;
-    // }
-
     __syncthreads();
-    if (idx==0) {
+    if (idx==0)
       mean[bx] = sum / (32.0f*32.0f);
-      // stddev[bx] = sqrtf(sumx2/(32.0f*32.0f) - mean[bx]*mean[bx]);
-      // stddev[bx] = sqrtf((sumx2 - (sum*sum)/(32.0f*32.0f))/(32.0f*32.0f-1));
-      // printf("mean %f stddev %f\n", mean[bx], stddev[bx]);
-    }
   }
 }
 
