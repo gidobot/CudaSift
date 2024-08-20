@@ -51,6 +51,11 @@ CudaImage::~CudaImage()
     safeCall(cudaFreeArray((cudaArray *)t_data));
   t_data = NULL;
 }
+
+void CudaImage::SetHostMemory(float *hostmem)
+{
+  h_data = hostmem;
+}
   
 double CudaImage::Download()  
 {
@@ -91,7 +96,7 @@ double CudaImage::InitTexture()
   return gpuTime;
 }
  
-double CudaImage::CopyToTexture(CudaImage &dst, bool host)
+double CudaImage::CopyToTexture(CudaImage &dst, bool host, cudaStream_t stream)
 {
   if (dst.t_data==NULL) {
     printf("Error CopyToTexture: No texture data\n");
@@ -106,7 +111,7 @@ double CudaImage::CopyToTexture(CudaImage &dst, bool host)
     safeCall(cudaMemcpyToArray((cudaArray *)dst.t_data, 0, 0, h_data, sizeof(float)*pitch*dst.height, cudaMemcpyHostToDevice));
   else
     safeCall(cudaMemcpyToArray((cudaArray *)dst.t_data, 0, 0, d_data, sizeof(float)*pitch*dst.height, cudaMemcpyDeviceToDevice));
-  safeCall(cudaDeviceSynchronize());
+  safeCall(cudaStreamSynchronize(stream));
   double gpuTime = timer.read();
 #ifdef VERBOSE
   printf("CopyToTexture time =          %.2f ms\n", gpuTime);

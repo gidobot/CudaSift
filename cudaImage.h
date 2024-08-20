@@ -5,6 +5,8 @@
 #ifndef CUDAIMAGE_H
 #define CUDAIMAGE_H
 
+#include <cuda_runtime.h>
+
 class CudaImage {
 public:
   int width, height;
@@ -21,7 +23,8 @@ public:
   double Download();
   double Readback();
   double InitTexture();
-  double CopyToTexture(CudaImage &dst, bool host);
+  double CopyToTexture(CudaImage &dst, bool host, cudaStream_t stream);
+  void SetHostMemory(float *hostMem);
 };
 
 int iDivUp(int a, int b);

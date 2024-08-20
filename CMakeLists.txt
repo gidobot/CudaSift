@@ -26,7 +26,9 @@ if (UNIX)
     set(EXTRA_CXX_FLAGS "-DVERBOSE -msse2")
     list(APPEND CUDA_NVCC_FLAGS "-arch=sm_35;--compiler-options;-O2;-DVERBOSE") 
   else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -msse2 ")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 ")
+#     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -DVERBOSE")
+#     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -msse2 ")
 #     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVERBOSE -O2 -msse2 ")
     list(APPEND CUDA_NVCC_FLAGS "-lineinfo;-ccbin;/usr/bin/gcc;--compiler-options;-O2;-D_FORCE_INLINES;-DVERBOSE_NOT") 
   endif()
@@ -57,11 +59,11 @@ include_directories(
 
 #SET(CUDA_SEPARABLE_COMPILATION ON)
 
-cuda_add_executable(cudasiftdemo ${cuda_sources} ${sources} OPTIONS -arch=sm_35)
-set_target_properties(cudasiftdemo PROPERTIES
-  COMPILE_FLAGS "${EXTRA_CXX_FLAGS}"			   
-)
-target_link_libraries(cudasiftdemo ${CUDA_cudadevrt_LIBRARY} ${OpenCV_LIBS})
+# cuda_add_executable(cudasiftdemo ${cuda_sources} ${sources} OPTIONS -arch=sm_35)
+# set_target_properties(cudasiftdemo PROPERTIES
+#   COMPILE_FLAGS "${EXTRA_CXX_FLAGS}"			   
+# )
+# target_link_libraries(cudasiftdemo ${CUDA_cudadevrt_LIBRARY} ${OpenCV_LIBS})
 
 cuda_add_library(cudasift SHARED ${cuda_sources} OPTIONS -arch=sm_35)
 set_target_properties(cudasift PROPERTIES
