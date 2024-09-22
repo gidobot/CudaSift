@@ -529,13 +529,13 @@ double ExtractPatches(cudaTextureObject_t texObj, SiftData &siftData, float subs
   dim3 threads(32, 32);
 
 #ifdef MANAGEDMEM
-  ExtractPatchesCONST<<<blocks, threads, 0, stream>>>(texObj, siftData.m_data, siftData.m_patch_data, siftData.m_patch_mean, subsampling, octave, siftData.d_PointCounter, siftData.maxPts);
-  GetPatchesStddevCONST<<<blocks, threads, 0, stream>>>(siftData.m_patch_data, siftData.m_patch_mean, siftData.m_patch_stddev, octave, siftData.d_PointCounter, siftData.maxPts);
-  NormalizePatchesCONST<<<blocks, threads, 0, stream>>>(siftData.m_patch_data, siftData.m_patch_mean, siftData.m_patch_stddev, octave, siftData.d_PointCounter, siftData.maxPts);
+  ExtractPatchesCONST<<<blocks, threads, 0, stream>>>(texObj, siftData.m_data, siftData.m_patch_data, subsampling, octave, siftData.d_PointCounter, siftData.maxPts);
+  // GetPatchesStddevCONST<<<blocks, threads, 0, stream>>>(siftData.m_patch_data, siftData.m_patch_mean, siftData.m_patch_stddev, octave, siftData.d_PointCounter, siftData.maxPts);
+  // NormalizePatchesCONST<<<blocks, threads, 0, stream>>>(siftData.m_patch_data, siftData.m_patch_mean, siftData.m_patch_stddev, octave, siftData.d_PointCounter, siftData.maxPts);
 #else
-  ExtractPatchesCONST<<<blocks, threads, 0, stream>>>(texObj, siftData.d_data, siftData.d_patch_data, siftData.d_patch_mean, subsampling, octave, siftData.d_PointCounter, siftData.maxPts);
-  GetPatchesStddevCONST<<<blocks, threads, 0, stream>>>(siftData.d_patch_data, siftData.d_patch_mean, siftData.d_patch_stddev, octave, siftData.d_PointCounter, siftData.maxPts);
-  NormalizePatchesCONST<<<blocks, threads, 0, stream>>>(siftData.d_patch_data, siftData.d_patch_mean, siftData.d_patch_stddev, octave, siftData.d_PointCounter, siftData.maxPts);
+  ExtractPatchesCONST<<<blocks, threads, 0, stream>>>(texObj, siftData.d_data, siftData.d_patch_data, subsampling, octave, siftData.d_PointCounter, siftData.maxPts);
+  // GetPatchesStddevCONST<<<blocks, threads, 0, stream>>>(siftData.d_patch_data, siftData.d_patch_mean, siftData.d_patch_stddev, octave, siftData.d_PointCounter, siftData.maxPts);
+  // NormalizePatchesCONST<<<blocks, threads, 0, stream>>>(siftData.d_patch_data, siftData.d_patch_mean, siftData.d_patch_stddev, octave, siftData.d_PointCounter, siftData.maxPts);
 #endif
   
   checkMsg("ExtractPatches() execution failed\n");

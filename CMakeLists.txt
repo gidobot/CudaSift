@@ -30,7 +30,12 @@ if (UNIX)
 #     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -DVERBOSE")
 #     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -msse2 ")
 #     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVERBOSE -O2 -msse2 ")
-    list(APPEND CUDA_NVCC_FLAGS "-lineinfo;-ccbin;/usr/bin/gcc;--compiler-options;-O2;-D_FORCE_INLINES;-DVERBOSE_NOT") 
+    set(CUDA_ARCH "-arch=sm_72")  # Replace sm_75 with your architecture (e.g., sm_60, sm_80, etc.) sm_72 for jetson xavier nx
+    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} ${CUDA_ARCH})
+    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-std=c++17")
+    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-lineinfo") # Enable line info for debugging
+    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-O2")
+    # set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-ccbin;/usr/bin/gcc;--compiler-options;-O2;-D_FORCE_INLINES;-DVERBOSE_NOT") # not sure if needed
   endif()
 endif()
 
@@ -65,7 +70,8 @@ include_directories(
 # )
 # target_link_libraries(cudasiftdemo ${CUDA_cudadevrt_LIBRARY} ${OpenCV_LIBS})
 
-cuda_add_library(cudasift SHARED ${cuda_sources} OPTIONS -arch=sm_35)
+# cuda_add_library(cudasift SHARED ${cuda_sources} OPTIONS -arch=sm_35)
+cuda_add_library(cudasift SHARED ${cuda_sources})
 set_target_properties(cudasift PROPERTIES
   COMPILE_FLAGS "${EXTRA_CXX_FLAGS}"         
 )

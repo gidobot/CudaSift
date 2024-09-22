@@ -416,10 +416,10 @@ __global__ void ExtractSiftDescriptorsCONSTNew(cudaTextureObject_t texObj, SiftP
   }
 }
 
-__global__ void ExtractPatchesCONST(cudaTextureObject_t texObj, SiftPoint *d_sift, float *patchData, float *mean,  float subsampling, int octave, unsigned int *d_PointCounter, int d_MaxNumPoints)
+__global__ void ExtractPatchesCONST(cudaTextureObject_t texObj, SiftPoint *d_sift, float *patchData, float subsampling, int octave, unsigned int *d_PointCounter, int d_MaxNumPoints)
 {
-  // __shared__ float rmean, rmean_old, rstd, count;
-  __shared__ float sum;
+  // __shared__ float rmean, var, count;
+  __shared__ float sum, sum_dev, mean, stddev;
 
   const int tx = threadIdx.x; // 0 -> 32
   const int ty = threadIdx.y; // 0 -> 32
@@ -428,16 +428,18 @@ __global__ void ExtractPatchesCONST(cudaTextureObject_t texObj, SiftPoint *d_sif
   int fstPts = min(d_PointCounter[2*octave-1], d_MaxNumPoints);
   int totPts = min(d_PointCounter[2*octave+1], d_MaxNumPoints);
   for (int bx = blockIdx.x + fstPts; bx < totPts; bx += gridDim.x) {
-    if (idx==0)
+    if (idx==0) {
       sum = 0.0;
+      sum_dev = 0.0;
+    }
     __syncthreads();
     
     // Compute angles and gradients
     float scale = d_sift[bx].scale;
     float rad = 3.0f*scale*0.5f*sqrtf(2.0f)*5.0f/32.0f;
     float theta = 2.0f*3.1415f/360.0f*d_sift[bx].orientation;
-    float sina = sinf(theta);           // cosa -sina
-    float cosa = cosf(theta);           // sina  cosa
+    float sina = __sinf(theta);           // cosa -sina
+    float cosa = __cosf(theta);           // sina  cosa
     float ssina = rad*sina; 
     float scosa = rad*cosa;
 
@@ -446,16 +448,27 @@ __global__ void ExtractPatchesCONST(cudaTextureObject_t texObj, SiftPoint *d_sif
 
     patchData[bx*32*32 + idx] = tex2D<float>(texObj, xpos, ypos);
 
+    // Compute mean
     atomicAdd(&sum, patchData[bx*32*32 + idx]);
     __syncthreads();
     if (idx==0) {
-      mean[bx] = sum / (32.0f*32.0f);
+      mean = sum / (32.0f*32.0f);
       // d_sift[bx].xpos *= subsampling;
       // d_sift[bx].ypos *= subsampling;
       // d_sift[bx].scale *= subsampling;
     }
+    __syncthreads();
+
+    // Calulate stddev
+    atomicAdd(&sum_dev, (patchData[bx*32*32 + idx]-mean) * (patchData[bx*32*32 + idx]-mean));
+    __syncthreads();
+    if (idx==0)
+      stddev = __fsqrt_rn(sum_dev/(32.0f*32.0f));
+    __syncthreads();
+
+    // Normalize patch
+    patchData[bx*32*32 + idx] = (patchData[bx*32*32 + idx] - mean) / stddev;
   }
-  __syncthreads();
 }
 
 __global__ void GetPatchesStddevCONST(float *patchData, float *mean, float *stddev, int octave, unsigned int *d_PointCounter, int d_MaxNumPoints)
