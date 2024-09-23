@@ -30,15 +30,11 @@ typedef struct {
 #ifdef MANAGEDMEM
   SiftPoint *m_data;  // Managed data
   float *m_patch_data;  // Managed data
-  float *m_patch_mean;  // Managed data
-  float *m_patch_stddev;  // Managed data
 #else
   SiftPoint *h_data;  // Host (CPU) data
   SiftPoint *d_data;  // Device (GPU) data
   float *h_patch_data;  // Host (CPU) data
   float *d_patch_data;  // Device (GPU) data
-  float *d_patch_mean;  // Device (GPU) data
-  float *d_patch_stddev;  // Device (GPU) data
 #endif
   unsigned int *d_PointCounter; // Device (GPU) data
 } SiftData;
@@ -47,8 +43,8 @@ typedef struct {
 void InitCuda(int devNum = 0);
 float *AllocSiftTempMemory(int width, int height, int numOctaves, bool scaleUp = false);
 void FreeSiftTempMemory(float *memoryTmp);
-void ExtractSift(SiftData &siftData, CudaImage &img, int numOctaves, double initBlur, float thresh, float lowestScale = 0.0f, bool scaleUp = false, float *tempMemory = 0);
-void InitSiftData(SiftData &data, int num = 1024, bool host = false, bool dev = true, bool patches = true);
+void ExtractSift(SiftData &siftData, CudaImage &img, int numOctaves, double initBlur, float thresh, float lowestScale = 0.0f, bool scaleUp = false, float *tempMemory = 0, float featScale = 1.0);
+void InitSiftData(SiftData &data, int num = 1024, bool host = false, bool dev = true, bool patches = false);
 void FreeSiftData(SiftData &data);
 void PrintSiftData(SiftData &data);
 double MatchSiftData(SiftData &data1, SiftData &data2);

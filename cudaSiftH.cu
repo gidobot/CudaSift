@@ -73,7 +73,7 @@ void FreeSiftTempMemory(float *memoryTmp)
     safeCall(cudaFree(memoryTmp));
 }
 
-void ExtractSift(SiftData &siftData, CudaImage &img, int numOctaves, double initBlur, float thresh, float lowestScale, bool scaleUp, float *tempMemory) 
+void ExtractSift(SiftData &siftData, CudaImage &img, int numOctaves, double initBlur, float thresh, float lowestScale, bool scaleUp, float *tempMemory, float featScale) 
 {
   // Create the cuda stream that will be used for inference
   cudaStream_t stream;
@@ -140,6 +140,9 @@ void ExtractSift(SiftData &siftData, CudaImage &img, int numOctaves, double init
     RescalePositions(siftData, 0.5f, stream);
     // printf("SIFT extraction time =        %.2f ms\n", timer1.read());
   } 
+  if (featScale != 1.0) {
+    RescalePositions(siftData, featScale, stream);
+  }
   
   if (!tempMemory)
     safeCall(cudaFree(memoryTmp));
@@ -333,8 +336,6 @@ void InitSiftData(SiftData &data, int num, bool host, bool dev, bool patches)
     int sz_patch = sizeof(float)*32*32*num;
 #ifdef MANAGEDMEM
     safeCall(cudaMallocManaged((void **)&data.m_patch_data, sz_patch));
-    safeCall(cudaMallocManaged((void **)&data.m_patch_mean, sizeof(float)*num));
-    safeCall(cudaMallocManaged((void **)&data.m_patch_stddev, sizeof(float)*num));
 #else
     data.h_patch_data = NULL;
     if (host)
@@ -342,8 +343,6 @@ void InitSiftData(SiftData &data, int num, bool host, bool dev, bool patches)
     data.d_patch_data = NULL;
     if (dev)
       safeCall(cudaMalloc((void **)&data.d_patch_data, sz_patch));
-      safeCall(cudaMalloc((void **)&data.d_patch_mean, sizeof(float)*num));
-      safeCall(cudaMalloc((void **)&data.d_patch_stddev, sizeof(float)*num));
 #endif
   }
   else {
@@ -377,16 +376,13 @@ void FreeSiftData(SiftData &data)
   // free patch data
 #ifdef MANAGEDMEM
   safeCall(cudaFree(data.m_patch_data));
-  safeCall(cudaFree(data.m_patch_mean));
-  safeCall(cudaFree(data.m_patch_stddev));
 #else
   if (data.d_patch_data!=NULL)
     safeCall(cudaFree(data.d_patch_data));
-    safeCall(cudaFree(data.d_patch_mean));
-    safeCall(cudaFree(data.d_patch_stddev));
   data.d_patch_data = NULL;
   if (data.h_patch_data!=NULL)
     free(data.h_patch_data);
+  data.h_patch_data = NULL;
 #endif
 
   // free point counter data
