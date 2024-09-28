@@ -17,17 +17,14 @@ if (NOT CUDA_FOUND)
   message(STATUS "CUDA not found. Project will not be built.")
 endif(NOT CUDA_FOUND)
 
-if (WIN32)
-  set(EXTRA_CXX_FLAGS "/DVERBOSE /D_CRT_SECURE_NO_WARNINGS ")
-  list(APPEND CUDA_NVCC_FLAGS "-arch=sm_35;--compiler-options;-O2;-DVERBOSE") 
-endif()
 if (UNIX)
-  if (APPLE)
-    set(EXTRA_CXX_FLAGS "-DVERBOSE -msse2")
-    list(APPEND CUDA_NVCC_FLAGS "-arch=sm_35;--compiler-options;-O2;-DVERBOSE") 
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -msse2 ")
+  if(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+    message(STATUS "Compiling on aarch64 architecture.")
+    list(APPEND CUDA_NVCC_FLAGS "-arch=sm_35;-lineinfo;-ccbin;/usr/bin/gcc;--compiler-options;-O2;-D_FORCE_INLINES;-DVERBOSE_NOT") 
   else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -msse2 ")
-    list(APPEND CUDA_NVCC_FLAGS "-lineinfo;-ccbin;/usr/bin/gcc;--compiler-options;-O2;-D_FORCE_INLINES;-DVERBOSE_NOT") 
+    message(STATUS "Compiling on a non-aarch64 architecture.")
+    list(APPEND CUDA_NVCC_FLAGS "-arch=sm_86;-lineinfo;-ccbin;/usr/bin/gcc;--compiler-options;-O2;-D_FORCE_INLINES;-DVERBOSE_NOT") 
   endif()
 endif()
 
@@ -56,13 +53,13 @@ include_directories(
 
 #SET(CUDA_SEPARABLE_COMPILATION ON)
 
-cuda_add_executable(cudasiftdemo ${cuda_sources} ${sources} OPTIONS -arch=sm_35)
+cuda_add_executable(cudasiftdemo ${cuda_sources} ${sources})
 set_target_properties(cudasiftdemo PROPERTIES
   COMPILE_FLAGS "${EXTRA_CXX_FLAGS}"			   
 )
 target_link_libraries(cudasiftdemo ${CUDA_cudadevrt_LIBRARY} ${OpenCV_LIBS})
 
-cuda_add_library(cudasift SHARED ${cuda_sources} OPTIONS -arch=sm_35)
+cuda_add_library(cudasift SHARED ${cuda_sources})
 set_target_properties(cudasift PROPERTIES
   COMPILE_FLAGS "${EXTRA_CXX_FLAGS}"         
 )
