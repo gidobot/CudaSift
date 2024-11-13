@@ -20,27 +20,20 @@ if (NOT CUDA_FOUND)
   message(STATUS "CUDA not found. Project will not be built.")
 endif(NOT CUDA_FOUND)
 
-if (WIN32)
-  set(EXTRA_CXX_FLAGS "/DVERBOSE /D_CRT_SECURE_NO_WARNINGS ")
-  list(APPEND CUDA_NVCC_FLAGS "-arch=sm_35;--compiler-options;-O2;-DVERBOSE") 
-endif()
-if (UNIX)
-  if (APPLE)
-    set(EXTRA_CXX_FLAGS "-DVERBOSE -msse2")
-    list(APPEND CUDA_NVCC_FLAGS "-arch=sm_35;--compiler-options;-O2;-DVERBOSE") 
-  else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 ")
-#     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -DVERBOSE")
-#     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -msse2 ")
-#     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVERBOSE -O2 -msse2 ")
-    set(CUDA_ARCH "-arch=sm_72")  # Replace sm_75 with your architecture (e.g., sm_60, sm_80, etc.) sm_72 for jetson xavier nx
-    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} ${CUDA_ARCH})
-    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-std=c++17")
-    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-lineinfo") # Enable line info for debugging
-    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-O2")
-    # set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-ccbin;/usr/bin/gcc;--compiler-options;-O2;-D_FORCE_INLINES;-DVERBOSE_NOT") # not sure if needed
-  endif()
-endif()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 ")
+
+include(FindCUDA)
+cuda_select_nvcc_arch_flags(ARCH_FLAGS)
+message(STATUS "Setting CUDA arch to ${ARCH_FLAGS}.")
+#     set(CUDA_ARCH "-arch=sm_72")  # Replace sm_75 with your architecture (e.g., sm_60, sm_80, etc.) sm_72 for jetson xavier nx
+# set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} ${CUDA_ARCH})
+
+set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} ${ARCH_FLAGS}")
+set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-O3")
+set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-std=c++17")
+set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-lineinfo") # Enable line info for debugging
+set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-O2")
+# set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-ccbin;/usr/bin/gcc;--compiler-options;-O2;-D_FORCE_INLINES;-DVERBOSE_NOT") # not sure if needed
 
 set(cuda_sources
   cudaImage.cu  
