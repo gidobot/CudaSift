@@ -390,11 +390,28 @@ __global__ void FindMaxCorr10(SiftPoint *sift1, SiftPoint *sift2, int numPts1, i
       	} else if (scores1[y*M7W + tx]>sec_score)
 	         sec_score = scores1[y*M7W + tx];
       }
-    sift1[bp1 + tx].score = max_score;
-    sift1[bp1 + tx].match = index;
-    sift1[bp1 + tx].match_xpos = sift2[index].xpos;
-    sift1[bp1 + tx].match_ypos = sift2[index].ypos;
-    sift1[bp1 + tx].ambiguity = sec_score / (max_score + 1e-6f);
+    // The grid is iDivUp(numPts1, M7W), so the last block covers up to M7W-1
+    // points past the end. SiftData is allocated with exactly maxPts entries
+    // and no slack, so writing those unguarded runs off the allocation
+    // whenever numPts1 == maxPts.
+    int p1 = bp1 + tx;
+    if (p1 < numPts1) {
+      sift1[p1].score = max_score;
+      sift1[p1].match = index;
+      if (index >= 0) {
+        sift1[p1].match_xpos = sift2[index].xpos;
+        sift1[p1].match_ypos = sift2[index].ypos;
+        sift1[p1].ambiguity = sec_score / (max_score + 1e-6f);
+      } else {
+        // No candidate was ever considered: the tile loop below is bounded by
+        // numPts2 - M7H + 1, so it does not run at all when the second image
+        // has fewer than M7H features, leaving index at its -1 initialiser.
+        // Report an unusable match rather than dereferencing sift2[-1].
+        sift1[p1].match_xpos = 0.0f;
+        sift1[p1].match_ypos = 0.0f;
+        sift1[p1].ambiguity = 1.0f;
+      }
+    }
   }
 }
   
