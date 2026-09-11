@@ -558,6 +558,23 @@ double OrientAndExtract(cudaTextureObject_t texObj, SiftData &siftData, float su
 
 double RescalePositions(SiftData &siftData, float scale, cudaStream_t &stream)
 {
+  // NOTHING TO RESCALE, AND A ZERO-SIZED GRID IS NOT A NO-OP.
+  //
+  // iDivUp(0, 64) is 0, so with no keypoints this launched <<<0, 64>>> and CUDA
+  // rejected it outright -- cudaErrorInvalidConfiguration, reported by checkMsg
+  // below as "RescapePositions() execution failed ... invalid configuration
+  // argument". That is a fatal error in the caller's process, not a skipped
+  // frame: in the ROS wrapper the whole node exited 255.
+  //
+  // ZERO KEYPOINTS IS AN ORDINARY INPUT, not a corrupt one. A flat field has no
+  // gradients for the DoG extrema to find, and underwater that is a silted-out
+  // lens, a look into open water, or a light failure -- reproduced here by
+  // publishing a uniform grey pair, which killed the node on the first frame.
+  //
+  // MatchSiftData already returns early on !numPts1 || !numPts2. This is the
+  // same guard, at the other place a point count becomes a grid dimension.
+  if (siftData.numPts <= 0)
+    return 0.0;
   dim3 blocks(iDivUp(siftData.numPts, 64));
   dim3 threads(64);
   RescalePositions<<<blocks, threads, 0, stream>>>(siftData.d_data, siftData.numPts, scale);
